@@ -1,0 +1,225 @@
+---
+title: "NYPD Shooting analysis"
+author: "Chase Bugajski"
+date: "9/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+This project will download historical NYPD shootings data from the given source. The following libraries are used: tidyverse, ggplot, and lubridate. 
+
+This analysis is broken into 3 parts:
+A) Data cleaning and visual exploration
+B) Categorical relationship between perpetrator and victim
+C) Categorical predictors for murder
+
+## A) Data cleaning and exploration
+```{r libraries, message = FALSE, warning = FALSE}
+library(lubridate)
+library(ggplot2)
+library(tidyverse)
+```
+
+This reads in the data and renames all variables I'm keeping. The analytic variables are: Borough, Perpetrator Age, Perpetrator Sex, Perpetrator Race, Victim Age, Victim Sex, Victim Race, Murdered (True or False). I add a column for cases (each row begins with 1), then clean up Perpetrator Age data by eliminating data entry errors. Finally, I create two dataframes, one only for shootings resulting in murder and ones which didn't.
+```{r data_load, message = FALSE, warning = FALSE}
+url_in <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+shootings1 <- read_csv(url_in)
+shootings <- shootings1 %>%
+  #This is renaming variables
+  rename(Borough = `BORO`,
+         Perp_Age = `PERP_AGE_GROUP`,
+         Perp_Sex = `PERP_SEX`,
+         Perp_Race = `PERP_RACE`,
+         Victim_Age = `VIC_AGE_GROUP`,
+         Victim_Sex = `VIC_SEX`,
+         Victim_Race = `VIC_RACE`,
+         Murdered = `STATISTICAL_MURDER_FLAG`) %>%
+  select(c(Borough, Perp_Age, Perp_Sex, Perp_Race,
+           Victim_Age, Victim_Sex, Victim_Race, Murdered))
+  shootings['Cases'] = 1
+
+shootings <- shootings[shootings$Perp_Age %in% c('<18', '18-24', '25-44', '45-64', '65+', 'UNKNOWN', NA),] %>%
+  mutate_if(is.character,as.factor)
+
+summary(shootings)
+
+murdered <- shootings[shootings$Murdered == 'TRUE',]
+n_murdered <- shootings[shootings$Murdered == 'FALSE',]
+```
+
+I begin exploring the data by creating stacked bar graphs of my categorical variables (borough of shooting, perpetrator and victim age, perpetrator and victim race, perpetrator and victim sex) by number of cases split by murdered vs not murdered.
+```{r borough_barplot, message = FALSE, warning = FALSE}
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Borough))+
+  geom_bar(position='stack', stat='identity')
+
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Perp_Age))+
+  geom_bar(position='stack', stat='identity')
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Victim_Age))+
+  geom_bar(position='stack', stat='identity')
+
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Perp_Race))+
+  geom_bar(position='stack', stat='identity')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Victim_Race))+
+  geom_bar(position='stack', stat='identity')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Perp_Sex))+
+  geom_bar(position='stack', stat='identity')
+ggplot(shootings, aes(fill=Murdered, y=Cases, x=Victim_Sex))+
+  geom_bar(position='stack', stat='identity')
+```
+
+I can get a numerical breakdown of the graphs by creating frequency tables for each variable, which could later be used for t-tests.
+```{r frequencies, message = FALSE, warning = FALSE}
+#Borough frequency table
+shootings_borough <- shootings %>%
+  group_by(Borough) %>%
+  count()
+shootings_borough <- shootings_borough %>% rename(Counts = `n`)
+shootings_borough <- shootings_borough %>% mutate(Percentage = Counts/sum(shootings_borough$Counts)*100)
+
+#Victim race frequency table
+shootings_victim_race <- shootings %>%
+  group_by(Victim_Race) %>%
+  count()
+shootings_victim_race <- shootings_victim_race %>% rename(Counts = `n`)
+shootings_victim_race <- shootings_victim_race %>% mutate(Percentage = Counts/sum(shootings_victim_race$Counts)*100)
+
+#Victim age frequency table
+shootings_victim_age <- shootings %>%
+  group_by(Victim_Age) %>%
+  count()
+shootings_victim_age <- shootings_victim_age %>% rename(Counts = `n`)
+shootings_victim_age <- shootings_victim_age %>% mutate(Percentage = Counts/sum(shootings_victim_age$Counts)*100)
+
+#Victim sex frequency table
+shootings_victim_sex <- shootings %>%
+  group_by(Victim_Sex) %>%
+  count()
+shootings_victim_sex <- shootings_victim_sex %>% rename(Counts = `n`)
+shootings_victim_sex <- shootings_victim_sex %>% mutate(Percentage = Counts/sum(shootings_victim_sex$Counts)*100)
+
+#Perp race frequency table
+shootings_perpetrator_race <- shootings %>%
+  group_by(Perp_Race) %>%
+  count()
+shootings_perpetrator_race <- shootings_perpetrator_race %>% rename(Counts = `n`)
+shootings_perpetrator_race <- shootings_perpetrator_race %>% mutate(Percentage = Counts/sum(shootings_perpetrator_race$Counts)*100)
+
+#Perp age frequency table
+shootings_perpetrator_age <- shootings %>%
+  group_by(Perp_Age) %>%
+  count()
+shootings_perpetrator_age <- shootings_perpetrator_age %>% rename(Counts = `n`)
+shootings_perpetrator_age <- shootings_perpetrator_age %>% mutate(Percentage = Counts/sum(shootings_perpetrator_age$Counts)*100)
+
+#Perp sex frequency table
+shootings_perpetrator_sex <- shootings %>%
+  group_by(Perp_Sex) %>%
+  count()
+shootings_perpetrator_sex <- shootings_perpetrator_sex %>% rename(Counts = `n`)
+shootings_perpetrator_sex <- shootings_perpetrator_sex %>% mutate(Percentage = Counts/sum(shootings_perpetrator_sex$Counts)*100)
+
+shootings_borough
+shootings_victim_race
+shootings_victim_age
+shootings_victim_sex
+shootings_perpetrator_race
+shootings_perpetrator_age
+shootings_perpetrator_sex
+```
+
+## B) Categorical relationship between perpetrator and victim
+I'm now going to explore the perpetrator/victim dyadic relationship further. First I'm creating heat maps for shootings between perpetrator race, age, and sex.
+
+```{r races, message = FALSE, warning = FALSE}
+shootings %>%
+  count(Perp_Race, Victim_Race) %>%
+  ggplot(mapping = aes(x = Victim_Race, y = Perp_Race)) + 
+  geom_tile(mapping = aes(fill = n)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+shootings %>%
+  count(Perp_Age, Victim_Age) %>%
+  ggplot(mapping = aes(x = Victim_Age, y = Perp_Age)) + 
+  geom_tile(mapping = aes(fill = n)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+shootings %>%
+  count(Perp_Sex, Victim_Sex) %>%
+  ggplot(mapping = aes(x = Victim_Sex, y = Perp_Sex)) + 
+  geom_tile(mapping = aes(fill = n)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+We can see that among non-missing data, there is a large number of black perpetrators with black victims compared to any other perpetrator/victim racial match up. Among assailants whose racial data is unknown, the victims also appear largely to be black. While this is visually striking, I want to delve deeper. Similarly, for perpetrators of unknown age or Aged 18-44, their victims tend to be 18-44. Finally, sex data is skewed, telling us only that the vast majority of perpetrators and victims are male.
+
+For more numerical exploration, I can also create crosstabs.
+```{r race_xtabs, message=FALSE, warning=FALSE}
+race_xtab <- xtabs(~Perp_Race+Victim_Race, data=shootings)
+race_xtab
+summary(race_xtab)
+print("Summing down columns...")
+prop.table(race_xtab, 2)
+print('Summing across rows...')
+prop.table(race_xtab, 1)
+```
+We will disregard the American Indian/Alaskan Native race for further analyses due to small sample size. We can first see that black victims account for much of the shootings by perpetrators of all races (shown here is perpetrator race, % of total victims who are black): Asian, 30.83%; Black, 79.41%; Black Hispanic, 41.07%; Unknown, 73.84%; White, 11.37%; White Hispanic, 32.13%. Despite this, we also find that perpetrators of all non-unknown races except for Black Hispanic are most likely to shoot someone of their own race (shown here is perpetrator race, % of total victims of perpetrator's own race): Asian, 31.67%; Black Hispanic, 25.53%; White, 59.21%; White Hispanic, 43.55%.
+
+Looking now at perpetrators, we see that black perpetrators account for most of the shootings for victims of all races except for white victims (shown here is victim race, % of all perpetrators who are black): Asian, 52.77%; Black, 75.63%; Black Hispanic, 45.31%; Unknown, 50%; White, 33.47%; White Hispanic, 40.99%. While the average victim is most likely to be shot by a black perpetrator, if they are not shot by a black perpetrator, unless they are black Hispanic - who have a 23.49% chance of being shot by a white Hispanic as opposed to a 19% chance of being shot by a black Hispanic - victims of non-unknown races are most likely to be shot by someone of their own race (shown here is victim race, % of total perpetrators of victim's own race): Asian, 16.17%; White, 31.59%; White Hispanic, 33.96%.
+
+``` {r age_xtabs, message = FALSE, warning = FALSE}
+age_xtab <- xtabs(~Perp_Age+Victim_Age, data=shootings)
+age_xtab
+print('Summing down columns...')
+prop.table(age_xtab, 2)
+#apply( 
+ # prop.table(age_xtab,2)*100, 
+  #2, 
+   #function(u) sprintf( "%.1f%%", u ))
+
+print('Summing across rows...')
+prop.table(age_xtab, 1)
+
+#apply( 
+ # prop.table(age_xtab,1)*100, 
+  #2, 
+   #function(u) sprintf( "%.1f%%", u ))
+```
+
+Examining victims, we first see that perpetrators 18-24 make up a large percentage for all victim age groups (22.80% - 42.83%). Indeed, this perpetrator age group was most represented in the sample. There is a less clear cut relationship vis-a-vis the race cross tabs, however perpetrators 18-44 make up >50% of shootings for all victim age groups. 
+
+## C) Categorical predictors for murder
+
+With all this in mind, I'm interested in seeing if our limited categorical data can help predict if a victim is murdered or not. I'll build three models: one containing all my variables, one containing age variables, and one containing race variables.
+``` {r modeling, message = FALSE, warning = FALSE}
+model1 <- glm(Murdered ~ Borough + Perp_Race + Perp_Age + Perp_Sex + Victim_Race + Victim_Age + Victim_Sex, data=shootings, family="binomial")
+model2 <- glm(Murdered ~ Perp_Age + Victim_Age, data=shootings, family="binomial")
+model3 <- glm(Murdered ~ Perp_Race + Victim_Race, data=shootings, family="binomial")
+
+summary(model1)
+summary(model2)
+summary(model3)
+```
+We see that taken all together, only age variables - and, to a lesser degree, borough - predict murder. Interestingly, it is not only victim age but perpetrator age which predict murder. Here are the odds ratio for our age model:
+
+``` {r age_model_summary, message = FALSE, warning = FALSE}
+exp(coef(model2)-1)*100
+```
+
+Interestingly, the odds ratios increase with age for both perpetrators and victims and appear correlated between the groups.
+
+### Conclusion
+We can  see that both shooting perpetrators and victims tend to be black, however if neither the victim or perpetrator is black, the victim tends to be shot by someone of their own race. Also, age of both perpetrator and victim is a strong predictor of the victim being murdered. Some sources of bias include:
+
+1. The data is collected from police reports. Shootings not identified in police reports are excluded, so some classes of shootings may not be included, e.g., accidental shootings.
+2. I did not include latitude and longitude. Other variables, such as borough or precinct, can approximate some of this data, however it may be interesting to break down the precincts even further.
+3. While personal bias is decreased by sheer fact that this is an assignment rather than a personal project, the choice of this data set may demonstrate bias of violence measurement. The United States has a long history of racialization of violence and urbanization, and choosing this data may feed into that societal bias. It would be good to include data from suburban and rural environments as well as other types of violence besides shootings.
+
+```{r session_info, echo=TRUE}
+sessionInfo()
+```
