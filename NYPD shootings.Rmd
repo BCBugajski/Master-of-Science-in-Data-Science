@@ -74,6 +74,24 @@ ggplot(shootings, aes(fill=Murdered, y=Cases, x=Victim_Sex))+
   geom_bar(position='stack', stat='identity')
 ```
 
+
+``` {r}
+ggplot() + 
+  geom_bar(data = shootings, mapping = aes(x = Perp_Age, y = Cases, fill = Murdered), 
+             stat="identity", 
+             position='stack', 
+             width = 0.35)
+    geom_bar(data = shootings, 
+             mapping = aes(x = Victim_Age, y = Cases, fill = Murdered), 
+             stat="identity", 
+             position='stack', 
+             width = 0.35)
+
+
+```
+
+
+
 I can get a numerical breakdown of the graphs by creating frequency tables for each variable, which could later be used for t-tests.
 ```{r frequencies, message = FALSE, warning = FALSE}
 #Borough frequency table
